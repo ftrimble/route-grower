@@ -4,3 +4,12 @@
 *.jar
 *.war
 *.ear
+
+# Latex Stuff
+*.log
+*.aux
+*.pdf
+
+# emacs
+\#*\#
+.emacs.desktop*
