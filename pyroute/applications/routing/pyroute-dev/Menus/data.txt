@@ -1,0 +1,17 @@
+﻿-----
+Up
+Position
+Waypoints
+-----
+Sketch|menu:data_sketch
+Tracklog
+Route
+-----
+
+
+
+-----
+Cache
+Privacy
+
+-----

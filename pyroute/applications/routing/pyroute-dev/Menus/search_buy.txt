@@ -1,0 +1,17 @@
+﻿-----
+Up
+Supermarket|search:amenity=supermarket
+Mall
+-----
+High street
+Department Store
+Outdoor
+-----
+DIY|search:tourism=diy
+
+
+-----
+
+
+
+-----

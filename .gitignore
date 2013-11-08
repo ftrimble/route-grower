@@ -10,6 +10,9 @@
 *.aux
 *.pdf
 
+cache
+data
+
 # emacs
 \#*\#
 .emacs.desktop*

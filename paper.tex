@@ -14,13 +14,14 @@
 \usepackage{url}
 
 \setlength{\parskip}{5pt plus1pt minus1pt}
-\setlength{\headheight}{15pt}
 
 \DeclareMathSizes{36}{36}{36}{36}
 
-\title{Train Harder, Smarter:\\Using Graph Theory to Create Route Sugestions}
+\title{Train Harder, Smarter:\\Using Graph Theory to Create Route Suggestions}
 \author{Forest Trimble\\trimbf@rpi.edu}
 \begin{document}
+
+\setlength{\headheight}{15pt}
 
 \pagestyle{fancy}
 \fancyhead{}
@@ -31,7 +32,7 @@
 \begin{abstract}
   \emph{Cyclists are always in search of the perfect ride on the perfect
   roads. They have criteria like distance and elevation gain to ensure
-  that they get in the workout that they want. Unfortunately, in order to
+  that they get in the workout that they want. Unfortunately, to
   find this ideal ride manually, it takes a great deal of exploring and
   time, and eventually, one may settle into the habit of using the same
   roads that he/she already knows. We research a way to improve this
@@ -54,14 +55,13 @@ problem.
 Specifically, a good solution should take as input a distance to travel, a
 start point, and, optionally, an elevation gain, and generate a route from the
 start point that satisfies the distance and elevation gain within some
-$\epsilon$. A fully robust solution would also utilize user data to ensure that
+tolerance. A fully robust solution would also utilize user data to ensure that
 it traverses the most pleasant roads to ride on and avoids the worst.
 
 \section{Tools}
 
-Creating a solution to this problem from scratch would require immense amounts
-of time and effort that are simply not available. Fortunately, the larger part
-of this problem has already been solved: maps have already been digitized and
+Creating a solution to this problem from scratch is unnecessary. The larger part
+of this problem has already been solved: maps have been digitized and
 parsers for the data format already exist. This section details the various
 tools and technologies that the algorithm leverages.
 
@@ -71,11 +71,17 @@ the maps themselves and to various (mostly open-source) software projects that
 utilize the format. More information on this format can be found on their
 website, openstreetmap.org.
 
-INFO ON OSRM
+Additionally, we leveraged some existing code to more easily be able to create
+a demonstrable algorithm. Pyroute was used, since it has the very nice feature
+that the navigation component was entirely decoupled into PyrouteLib. This
+allows easy utilization of the Pyroute tools for GUI setup and OSM download
+while also making it rather explicit where the navigation functions are. The
+OSM wiki pages have a good deal of information
+on Pyroute and PyrouteLib; refer to them for more information.
 
 \section{Algorithm}
 
-The most important part of all of this is how it actually works. The core idea
+The core idea of our algorithm
 is that at any point along the route, the engine generates weights for each
 different possible direction to take, generates a random number, and picks a
 direction according to the random number and the weights. There are several
@@ -143,11 +149,50 @@ direction. We'll consider the method for finding the optimal direction,
 $\theta$, briefly. First, consider how the weights are generated once
 that direction is discovered. Basically, there is a weighted compass oriented
 along $\theta$, with weights from 0.5 to 2. See Figure~\ref{fig:weights} to
-see what we mean. As shown, the weights do not scale linearly, instead, the
-weight of any angle, $\tau$, is calculated as follows:
+see what we mean. As shown, the weights do not scale linearly. Instead, they
+scale exponentially. This ensures that the weights are mostly centered around
+the perpendicular, with growth accelerating farther from the perpendicular.
+The idea is to have the weight be double in the ideal
+direction, half moving exactly opposite the ideal direction, and unchanged
+perpendicular to the ideal direction. Considering these three pieces of
+information, we are looking for some $f : [0,2\pi] \to [0.5,2]$ as follows:
+\begin{align*}
+  2 = & f(\theta) \\
+  1 = & f(\theta \pm \frac{\pi}{2}) \\
+  \frac{1}{2} = & f(\theta \pm \pi)
+\end{align*}
+Let $\tau$ be the angle under consideration. We let
+\[ \mbox{ang}(\tau, \theta) = |\theta - \tau \mbox{ mod } \pi|. \]
+This allows us to define $f$ in terms of the angle between $\tau$ and
+$\theta$. This function is necessary because $\theta$ is not necessarily
+0. Note that this function only allows $\mbox{ang}(\tau, \theta)
+\in [0,\pi]$. We accept this since we would like a compass symmetric
+over the angle $\theta$, and we don't care if the angles are negative
+or positive. However, the original function was defined in terms of the
+value of $\tau$; instead, we are interested in a function based on the
+angle between $\tau$ and $\theta$, which requires a slight redefinition:
+\begin{align*}
+  2 = & g(0) \\
+  1 = & g(\frac{\pi}{2}) \\
+  \frac{1}{2} = & g(\pi)
+\end{align*}
+We've already expressed the fact that we're interested in an exponential
+function, and a base of two seems the obvious choice, leading to another
+reduction:
+\begin{align*}
+  2 = 2^{h(0)} & \to & h(0) = 1 \\
+  1 = 2^{h(\frac{\pi}{2})} & \to & h(\frac{\pi}{2}) = 0\\
+  \frac{1}{2} = 2^{h(\pi)} & \to & h(\pi) = -1
+\end{align*}
+This yields two sets of three collinear points, which is easy enough to
+map one to the other. Consider $h : [0,\pi] \to [-1,1]$ as follows:
+\[ h(\mbox{ang}(\tau,\theta)) = 1 - \frac{2}{\pi}\mbox{ang}(\tau, \theta). \]
+This satisfies the three points we gave, so we plug it in and calculate weight
+accordingly:
 \begin{equation}
-  \mbox{WEIGHT} = 2^{1-\frac{2}{\pi}|\theta-\tau|}. \label{eq:weight}
+  \mbox{WEIGHT} = 2^{1-\frac{2}{\pi}\mbox{ang}(\tau,\theta)}. \label{eq:weight}
 \end{equation}
+
 
 Now, we consider the method for finding the ideal direction. The idea behind the
 direction loop is that if we had an ideal route, it would run exactly along that
@@ -304,10 +349,46 @@ Another characteristic to consider is whether a road has already been
 travelled. Repeatedly riding along the same stretch of road can make a ride
 rather boring, so by weighting against this, it can be avoided.
 
-ARE THERE MORE FOR THIS SECTION?
-
 \subsection{Using the Weights Together}
 
 \section{Moving to Three Dimensions} \label{sec:latlong}
+
+\section{Experimentation \& Results}
+
+\section{Discussion}
+
+\section{Future Work}
+
+There are many ways to expand the algorithm developed here. While we have done
+our best to utilize as much data as possible, expanding the set of data utilized
+to generate the routes will likely improve the algorithm.
+
+
+ (ASK DAN FOR THIS
+PAPER) There has been research done into analyzing the probability of accidents
+on a road based on certain metadata. This metadata is readily available to the
+cities that own the roads, but it is seldom available for direct access inside
+of maps. If this data becomes more readily available, then it can be integrated
+into the application to help increase user safety.
+
+Additionally, this has been a facet of a three pronged project developing a
+platform for bicycle training. The other two aspects are developing an Android
+application to track training data during a ride and a website to track
+long-term training data. Ideally, this algorithm will eventually be seamlessly
+integrated into the mobile and web projects, so that routes can be generated
+and sent directly to the application for the user to follow.
+
+Once the three prongs of this project have been integrated together, leveraging
+the data from the other parts would also provide valuable input for the
+algorithm. One of the most exciting applications of this information is to
+generate something similar to a heatmap of roads that users of the website
+ride. With this heatmap, the weights could be improved and generated based on
+popularity.
+
+Finally, it might be interesting to generate routes that are not necessarily
+circuits. Loops are generally more useful since cyclists are likely to want
+to return home after a good training ride, but it might also be useful to
+have some sort of quasi-navigation that aims for the most fun route
+between two locations rather than the most direct route.
 
 \end{document}
