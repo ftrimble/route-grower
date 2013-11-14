@@ -5,6 +5,9 @@
 *.war
 *.ear
 
+# Python
+*.pyc
+
 # Latex Stuff
 *.log
 *.aux

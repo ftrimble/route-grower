@@ -309,11 +309,13 @@ have a fairly small search space, since $d - d_i > d_j > 0$. On the other hand,
 it is not readily apparent how these solutions will behave. We can, however,
 be certain that it is continuous, so we can proceed as follows:
 \begin{enumerate}
-\item Check if the optimal solution would require that we move around the loop
-  again. This will happen if
-  \[d_i+\sqrt{(x_0.x-x_i.x)^2+(x_0.y-x_i.y)^2} > d.\]
-  In this case, we set $x_j = x_0$, and stop searching.
-\item \emph{NEEDS MORE WORK}
+\item Calculate \eqref{eq:xjx} and \eqref{eq:xjy} for all $\{ d_j |
+  0 \leq d_j \leq d - d_i \mbox{ and } d_j = n(0.01d), n \in \mathbb{Z} \}$.
+\item Calculate \eqref{eq:dists} for each of these values.
+\item If the minimal difference between the $d_j$ calculated in \eqref{eq:dists}
+  and the $d_j$ provided in \eqref{eq:xjx} and \eqref{eq:xjy} is less than
+  10\% of $d$, then use the $x_j$ calculated there.
+\item Otherwise, use $x_0$ as $x_j$.
 \end{enumerate}
 
 At this point, we have found $x_j$. From here, calculating $\theta$ is fairly
