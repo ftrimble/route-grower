@@ -125,12 +125,11 @@ class pyrouteEvents(pyrouteModule):
       lat,lon = self.get('clicked')
     else:
       lat, lon = [float(ll) for ll in params.split(':',1)]
-
-    transport = self.get('mode')
-
+    transport = 'cycle'
     router = self.m['route']
     router.setStartLL(lat, lon, transport)
     router.setMode('cycle')
+    router.setDistEle(float(raw_input()),int(raw_input()))
     router.update()
     self.set('needRedraw', True)
 

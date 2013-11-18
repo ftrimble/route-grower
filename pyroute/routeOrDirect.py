@@ -26,6 +26,9 @@ class RouteOrDirect(Router, Grower):
         self.route['endnode'] = self.data.findNode(lat,lon,transport)
         self.route['endpos'] = (lat,lon)
         self.route['transport'] = transport
+    def setDistEle(self, distGain, elevationGoal):
+        self.route['distance'] = distGain
+        self.route['ascent'] = elevationGoal
     def update(self):
         if(self.mode == 'route'):
             result, newroute = self.doRouteAsLL(self.route['startnode'],
@@ -44,17 +47,11 @@ class RouteOrDirect(Router, Grower):
             self.route['route'].append(self.route['endpos'])
             self.route['valid'] = True
         elif self.mode == 'cycle':
-            self.route['route'] = []
-            result, newroute = self.growCycleAsLL(self.route['startnode'],
-                                                  20,
-                                                  0,
-                                                  0,
-                                                  self.route['transport'])
-            if result == 'success':
-                self.route['route'] = newroute
-                self.route['valid'] = True
-            else:
-                self.route['valid'] = False
-
+            (self.route['valid'],
+             self.route['route']) = self.growCycleAsLL(self.route['startnode'],
+                                                       self.route['distance'],
+                                                       self.route['ascent'],
+                                                       0)
+            print self.route['route']
     def valid(self):
         return(self.route['valid'])

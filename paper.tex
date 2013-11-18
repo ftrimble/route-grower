@@ -10,6 +10,7 @@
 \usepackage{tikz}
 \usepackage{fancyhdr}
 \usepackage{algpseudocode}
+\usepackage{algorithm}
 \usepackage[toc,page]{appendix}
 \usepackage{url}
 
@@ -227,8 +228,8 @@ that $\phi$ is exactly $\pi$ plus the compass direction that we would expect.
 Once you recall that our distance goal, $d$, is the circumfrence of the loop,
 it is easy to see that the radius is $\frac{d}{2\pi}$. We can then adjust our
 equation to correspond with our starting point and radius as follows:
-\[ x = \frac{d}{2\pi}(\cos ( t + \phi ) - \cos \phi ) + x_0.x \]
-\[ y = \frac{d}{2\pi}(\cos ( t + \phi ) - \cos \phi ) + x_0.y \]
+\[ x = \frac{d}{2\pi}(\cos ( t + \phi ) - \cos \phi ) + x_0 \]
+\[ y = \frac{d}{2\pi}(\cos ( t + \phi ) - \cos \phi ) + y_0 \]
 Of course, this needs some adjustment to deal with the difference of using
 latitude and longitude over a cartesian coordinate system, since latitude
 and longitude are not actually coordinates on a 2-d plane, but rather angles
@@ -244,8 +245,8 @@ angle in terms of a percentage of the requisite distance travelled. This gives
 us the advantage of knowing exactly where in the loop we should be at any
 current distance travelled. This also needs to be capped after $d_i \geq d$.
 Incorporating this yields the final equations:
-\[ x = \frac{d}{2\pi}(\cos (\min(\frac{2\pi}{d}d_i,2\pi) + \phi) - \cos \phi) + x_0.x \]
-\[ y = \frac{d}{2\pi}(\sin (\min(\frac{2\pi}{d}d_i,2\pi) + \phi) - \sin \phi)+ x_0.y. \]
+\[ x = \frac{d}{2\pi}(\cos (\min(\frac{2\pi}{d}d_i,2\pi) + \phi) - \cos \phi) + x_0 \]
+\[ y = \frac{d}{2\pi}(\sin (\min(\frac{2\pi}{d}d_i,2\pi) + \phi) - \sin \phi)+ y_0. \]
 
 \begin{figure}
   \centering
@@ -292,44 +293,136 @@ calculating $x_j$ in terms of the distance travelled along the arc, and the
 distance between $x_i$ and $x_j$ can easily be calculated using the pythagorean
 theorem. Note that we find $x_j$ as follows:
 \begin{align}
-  x_j.x = \frac{d}{2\pi} ( & \cos( \frac{ 2 \pi }{ d } ( \min( d, d_i + d_j ) )
-                                  + \phi ) \notag \\ & - \cos \phi ) + x_0.x
-                                  \label{eq:xjx} \\
-  x_j.y = \frac{d}{2\pi} ( & \sin( \frac{ 2 \pi }{ d } ( \min( d, d_i + d_j ) )
-                                  + \phi ) \notag \\ & - \sin \phi ) + x_0.y.
-                                  \label{eq:xjy}
+  x_j = \frac{d}{2\pi} ( & \cos( \frac{ 2 \pi }{ d } ( \min( d, d_i + d_j ) )
+                                  + \phi ) \notag \\ & - \cos \phi ) + x_0
+                                  \label{eq:xj} \\
+  y_j = \frac{d}{2\pi} ( & \sin( \frac{ 2 \pi }{ d } ( \min( d, d_i + d_j ) )
+                                  + \phi ) \notag \\ & - \sin \phi ) + y_0.
+                                  \label{eq:yj}
 \end{align}
 To satisfy our constraint, we have
-\begin{equation}
-  d_j = \sqrt{ ( x_j.x - x_i.x )^2 + ( x_j.y - x_i.y )^2 }. \label{eq:dists}
-\end{equation}
-Obviously, this is a rather difficult equation to truly solve, so we must only
-heuristically find a solution. Luckily, we
-have a fairly small search space, since $d - d_i > d_j > 0$. On the other hand,
-it is not readily apparent how these solutions will behave. We can, however,
-be certain that it is continuous, so we can proceed as follows:
-\begin{enumerate}
-\item Calculate \eqref{eq:xjx} and \eqref{eq:xjy} for all $\{ d_j |
-  0 \leq d_j \leq d - d_i \mbox{ and } d_j = n(0.01d), n \in \mathbb{Z} \}$.
-\item Calculate \eqref{eq:dists} for each of these values.
-\item If the minimal difference between the $d_j$ calculated in \eqref{eq:dists}
-  and the $d_j$ provided in \eqref{eq:xjx} and \eqref{eq:xjy} is less than
-  10\% of $d$, then use the $x_j$ calculated there.
-\item Otherwise, use $x_0$ as $x_j$.
-\end{enumerate}
+\[ d_j = \sqrt{ ( x_j(d_j) - x_i )^2 + ( x_j(d_j) - x_i )^2 }. \]
 
-At this point, we have found $x_j$. From here, calculating $\theta$ is fairly
-straightforward:
+\subsubsection{Finding $d_j$}
+Obviously, this is a rather difficult equation to truly solve, so we must only
+heuristically find a solution. Unfortunately, even the heuristic solution is
+a difficult one for a few reasons. Most problematically, the sine and cosine
+functions have up to two stationary points on the interval we are considering
+and there may not be a solution of $d_j$ that will satisfy the equality.
+Nonetheless, we will do our best to mitigate these issues and apply a good
+heuristic to find $d_j$. First, we rearrange our equation so that we can apply
+a root-finding approximation algorithm to it:
+\begin{equation}
+  f(d_j) = \sqrt{(x_j(d_j) - x_i)^2 + (y_j(d_j) - y_i)^2} - d_j. \label{eq:dj}
+\end{equation}
+This simply allows the $d_j$ we are looking for to be the zero of the function.
+The first exciting bit of news is that for most solutions of this equation with
+$d_j < d$, it will work out that $f(0) > 0$ and $f(d-d_i) < 0$.
+We know that $f(0) \geq 0$ by the
+positivity of norms, and the square root of the sum of the squares is the
+euclidian norm. We also can be certain that $f(d-d_i) < 0$ since
+the norm is also unable to change by more than the diameter
+of the ideal loop, or even less based on the proximity of $x_i$ to the center of
+the loop. In situations where $f(d-d_i) > 0$, we notice that the distance to the
+start of the loop is further away than the amount of distance we have left to
+travel; this means that we should just route back to the start anyways. As such,
+we have bounds inside of which we know that there exists a solution. We apply
+Brent's method, a robust root approximation algorithm, to determine the solution
+inside of this zone. The idea behind Brent's method is to combine the bisection
+method, the secant method, and inverse quadratic interpolation. Readers
+unfamiliar with any of these techniques should refer to CITATIONS. Some
+pseudocode is given for Brent's Method in Algorithm~\ref{alg:brent}. The idea
+is this:
+
+First, we need a bracket in which our function has a root. For us, this is
+simple enough; we just use $[0, d-d_i]$. If that bracket does not satisfy the
+condition, we just set $d_j = d-d_i$ and don't bother with anything.
+
+The algorithm details out the actual swapping of $a_k$ and $b_k$, but here
+we'll just assume that $|f(a_k)| > |f(b_k)|$ at all points in time; that is,
+$b_k$ is a better approximation of the solution than $a_k$. We also require
+$b_{k-1}$; for now, we'll set it to $a_k$.
+
+This is a heuristic, so we'll keep repeating the algorithm until either
+$a_k \approx b_k$ or $f(b_k) \approx 0$. At the $k^{\mbox{{\tiny th}}}$ iteration,
+we'll calculate $b_{k+1}$ using both inverse quadratic interpolation and the
+bisection method.
+
+In general, the inverse quadratic interpolation can proceed very quickly, but we
+add the bisection method to ensure convergence. In using interpolation, one of
+the following conditions must be satisfied:
+\begin{itemize}
+\item Inverse Quadratic Interpolation was performed last time,
+  \[ |s - b_k| < \left|\frac{b_{k-1}-b_{k-2}}{2}\right|, \]
+  and
+  \[|\delta| < |b_{k-1} - b_{k-2}| \]
+\item The Bisection Method was used last time,
+  \[|s - b_k| < \left|\frac{b_k-b_{k-1}}{2}\right|, \]
+  and
+  \[ |\delta| < |b_k - b_{k-1}| \]
+\end{itemize}
+The rest of the pseudocode serves only to ensure that variables are assigned
+correctly. One notes that mflag indicates whether interpolation was used last
+time or not.
+
+\begin{algorithm}
+  \caption{Using Brent's Method to find a zero of a function}
+  \label{alg:brent}
+  \begin{algorithmic}
+    \Require $f(a_0)f(b_0) > 0$
+    \Function{Brent}{$f : [a,b] \to \mathbb{R}$, $a_0$, $b_0$}
+      \If{$|f(a_0)| < |f(b_0)|$}
+        \Call{swap}{$a_0$,$b_0$}
+      \EndIf
+      \State $b_{k-1} \gets a_0$
+      \State mflag $\gets$ True
+      \While{$f(b_k) \not = 0$ {\bf and} $|b_k - a_k| > \epsilon$}
+      \begin{align*}
+        s \gets &\frac{a_kf(b_k)f(b_{k-1})}{(f(a_k)-f(b_k))(f(a_k)-f(b_{k-1}))} \\
+        & + \frac{b_kf(a_k)f(b_{k-1})}{(f(b_k)-f(a_k))(f(b_k)-f(b_{k-1}))} \\
+        & + \frac{b_{k-1}f(a_k)f(b_k)}{(f(b_{k-1})-f(a_k))(f(b_{k-1})-f(b_k))}
+      \end{align*}
+      \State {\bf if} $\displaystyle s \not \in \left[ \frac{3a_k+b_k}{4},b_k \right]$
+             {\bf or}
+             \State ~~~~(mflag is True {\bf and}
+             \State ~~~~~~~~ ($\displaystyle |s-b_k| \geq \frac{|b_k-b_{k-1}|}{2}$
+             \State ~~~~~~~~~~ {\bf or} $|b_k-b_{k-1}| < |\delta|$)) {\bf or}
+             \State ~~~~(mflag is False {\bf and}
+             \State ~~~~~~~~ ($\displaystyle |s-b_k| \geq \frac{|b_{k-1}-b_{k-2}|}{2}$
+             \State ~~~~~~~~~~ {\bf or} $|b_{k-1}-b_{k-2}| < |\delta|$)) {\bf then}
+             \State ~~~~ $\displaystyle s \gets \frac{a_k+b_k}{2}$
+             \State ~~~~ mflag $\gets$ True
+             \State {\bf else}
+             \State ~~~~ mflag $\gets$ False
+        \State $b_{k-2} \gets b_{k-1}$
+        \State $b_{k-1} \gets b_k$
+        \If{$f(a_k)f(s) < 0$}
+          \State $b_k \gets s$
+        \Else
+          \State $a_k \gets s$
+        \EndIf
+        \If{$|f(a_k)| < |f(b_k)|$}
+          \Call{swap}{$a_k$,$b_k$}
+        \EndIf
+      \EndWhile
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}
+
+Thus, by utilizing Brent's Algorithm, we can find $x_j$. From here, calculating
+$\theta$ is fairly straightforward:
 \begin{align}
-  \tan \theta = & \frac{x_j.y - x_i.y}{x_j.x-x_i.x} \notag \\
-  \theta = & \tan^{-1} \frac{x_j.y - x_i.y}{x_j.x-x_i.x} \label{eq:theta}
+  \tan \theta = & \frac{y_j - y_i}{x_j-x_i} \notag \\
+  \theta = & \tan^{-1} \frac{y_j - y_i}{x_j-x_i} \label{eq:theta}
 \end{align}
 
 Finally, we have a method for calculating the weights based on distance and
-direction! Use \eqref{eq:xjx}, \eqref{eq:xjy}, and \eqref{eq:dists} to find
-an $x_j$, and plug into \eqref{eq:theta} to find a $\theta$. Finally, use
-$\theta$ in conjunction with \eqref{eq:weight} to assign weights to
-directions.
+direction! Use Brent's algorithm as described in Algorithm~\ref{alg:brent}
+with the function to be zeroed as \eqref{eq:dj}. Use that $d_j$ in conjunction
+with \eqref{eq:xj} and \eqref{eq:yj} to find
+$x_j$ and $y_j$, respectively, and plug into \eqref{eq:theta} to find a
+$\theta$. Finally, use $\theta$ in conjunction with \eqref{eq:weight} to assign
+weights to directions.
 
 \subsection{Weight for Elevation Gain}
 
