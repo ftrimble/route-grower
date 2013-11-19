@@ -493,11 +493,19 @@ selected at random based on their weights.
 
 \section{Moving to Three Dimensions} \label{sec:latlong}
 
-\subsection{Distance Calculations}
 As mentioned earlier, using the Euclidian norm for latitudes and longitudes
-is highly inaccurate; latitudes and longitudes are more similar to 3D polar
-coordinates with a fixed $r$ than they are to a coordinate plane. The
-haversine formula is used to calculate distances between two points on the
+is highly inaccurate; latitudes and longitudes are spherical coordinates with
+fixed $r$, so considering the latitude and longitude to be $x$ and $y$ values is
+a very flawed idea. As one can see in Figure~\ref{fig:sphere}, the contrast is
+stark. Latitude and longitudes are angles, not positions in space.
+
+\begin{figure}
+  \includegraphics[width=3in]{images/558px-3D_Spherical.png}
+  \caption{The Spherical Coordinate System} \label{fig:sphere}
+\end{figure}
+
+\subsection{Distance Calculations}
+The haversine formula is used to calculate distances between two points on the
 surface of a sphere. The haversine formula uses the haversin function,
 which is defined as follows:
 \newcommand{\haversin}{\mbox{haversin}}
@@ -533,19 +541,36 @@ a cartesian coordinate plane. These are an inaccurate representation of the
 intended ideal loop; as the loop progresses further from the equator, it will
 become increasingly squashed in the east/west direction.
 
+\begin{figure}
+  \centering
+  \includegraphics[width=2in]{images/220px-Numerical_aperture.png}
+  \caption{The aperture of a cone} \label{fig:aperture}
+\end{figure}
 To find the proper loop, a cone must be projected from the origin of the sphere,
 and the intersection of the cone and the sphere can be used to calculate the
 ideal loop. The following equation describes a cone,
 \[ 0 = (u \cdot d)^2 - |d||u|\cos \phi , \]
 where $u= (x,y,z)$, $d = (a,b,c)$ is a vector parallel to the axis of the
-cone, and $\phi$ is one-half the aperture of the cone. Additionally, recall
+cone, and $\phi$ is one-half the aperture of the cone. In
+Figure~\ref{fig:aperture}, the $\theta$ pictured is the same as the $\phi$ in
+this equation. Additionally, recall
 the equation for a sphere:
 \[ r = |u|. \]
-Unfortunately, both of these equations are of little aid, since they require
+For the most part, we can consider $r = 1$, since we are dealing with the
+surface of a sphere. However, we do have to make certain calculations using
+the actual radius of the earth. For example, in order to calculate the
+aperture $\phi$, we realize that the length of the sides of the cone will be the
+radius of the earth. Then $\sin \phi = \frac{r_c}{r}$, so we can calculate
+$\phi$ as follows:
+\begin{equation}
+  \phi = \sin^{-1} \left( \frac{\frac{d}{2\pi}}{r} \right) \label{eq:phi}
+\end{equation}
+
+Unfortunately, the equations for spheres and cones are of little aid, since
+they require
 input in the form of cartesian coordinates. We would like to convert these to
 a set of equations in spherical form. However, these equations become rather
-complicated; for now, we've accepted the projected sphere as ``good enough.''
-
+complicated; for now, we've accepted the projected circle as ``good enough.''
 
 \section{Experimentation \& Results}
 
