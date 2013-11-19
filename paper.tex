@@ -126,7 +126,10 @@ to the Open Street Map network of roads):
 The first weight is based on distance. The idea is that there is a theoretical,
 perfect loop that covers exactly the amount of distance that you would like,
 and the algorithm does its best to direct you along that loop. See
-Figure~\ref{fig:ideal} for an example of what this might look like.
+Figure~\ref{fig:ideal} for an example of what this might look like.In order to
+direct you along this loop, weights are generated based on
+direction. We'll consider the method for finding the optimal direction,
+$\theta$.
 
 \begin{figure}
   \centering
@@ -145,9 +148,9 @@ Figure~\ref{fig:ideal} for an example of what this might look like.
   \caption{A possible weighted compass} \label{fig:weights}
 \end{figure}
 
-In order to direct you along this loop, weights are generated based on
-direction. We'll consider the method for finding the optimal direction,
-$\theta$, briefly. First, consider how the weights are generated once
+\subsubsection{Calculating the Weights}
+
+First, consider how the weights are generated once
 that direction is discovered. Basically, there is a weighted compass oriented
 along $\theta$, with weights from 0.5 to 2. See Figure~\ref{fig:weights} to
 see what we mean. As shown, the weights do not scale linearly. Instead, they
@@ -194,6 +197,7 @@ accordingly:
   \mbox{WEIGHT} = 2^{1-\frac{2}{\pi}\mbox{ang}(\tau,\theta)}. \label{eq:weight}
 \end{equation}
 
+\subsubsection{Calculating the Ideal Loop}
 
 Now, we consider the method for finding the ideal direction. The idea behind the
 direction loop is that if we had an ideal route, it would run exactly along that
@@ -301,7 +305,9 @@ theorem. Note that we find $x_j$ as follows:
                                   \label{eq:yj}
 \end{align}
 To satisfy our constraint, we have
-\[ d_j = \sqrt{ ( x_j(d_j) - x_i )^2 + ( x_j(d_j) - x_i )^2 }. \]
+\begin{equation}
+d_j = \sqrt{ ( x_j(d_j) - x_i )^2 + ( x_j(d_j) - x_i )^2 }. \label{eq:dj}
+\end{equation}
 
 \subsubsection{Finding $d_j$}
 Obviously, this is a rather difficult equation to truly solve, so we must only
@@ -312,9 +318,7 @@ and there may not be a solution of $d_j$ that will satisfy the equality.
 Nonetheless, we will do our best to mitigate these issues and apply a good
 heuristic to find $d_j$. First, we rearrange our equation so that we can apply
 a root-finding approximation algorithm to it:
-\begin{equation}
-  f(d_j) = \sqrt{(x_j(d_j) - x_i)^2 + (y_j(d_j) - y_i)^2} - d_j. \label{eq:dj}
-\end{equation}
+\[ f(d_j) = \sqrt{(x_j(d_j) - x_i)^2 + (y_j(d_j) - y_i)^2} - d_j. \]
 This simply allows the $d_j$ we are looking for to be the zero of the function.
 The first exciting bit of news is that for most solutions of this equation with
 $d_j < d$, it will work out that $f(0) > 0$ and $f(d-d_i) < 0$.
@@ -349,21 +353,13 @@ we'll calculate $b_{k+1}$ using both inverse quadratic interpolation and the
 bisection method.
 
 In general, the inverse quadratic interpolation can proceed very quickly, but we
-add the bisection method to ensure convergence. In using interpolation, one of
-the following conditions must be satisfied:
-\begin{itemize}
-\item Inverse Quadratic Interpolation was performed last time,
-  \[ |s - b_k| < \left|\frac{b_{k-1}-b_{k-2}}{2}\right|, \]
-  and
-  \[|\delta| < |b_{k-1} - b_{k-2}| \]
-\item The Bisection Method was used last time,
-  \[|s - b_k| < \left|\frac{b_k-b_{k-1}}{2}\right|, \]
-  and
-  \[ |\delta| < |b_k - b_{k-1}| \]
-\end{itemize}
+add the bisection method to ensure convergence. In order to use interpolation,
+we require that a few conditions are satisfied. Namely, $s$ has to be in a certain
+interval, and the iterates need to obey certain bounds.
+
 The rest of the pseudocode serves only to ensure that variables are assigned
-correctly. One notes that mflag indicates whether interpolation was used last
-time or not.
+correctly. One notes that $B$ indicates whether the bisection method was used
+on the previous iteration.
 
 \begin{algorithm}
   \caption{Using Brent's Method to find a zero of a function}
@@ -375,36 +371,47 @@ time or not.
         \Call{swap}{$a_0$,$b_0$}
       \EndIf
       \State $b_{k-1} \gets a_0$
-      \State mflag $\gets$ True
+      \State $B \gets$ True \Comment{bisected last time?}
       \While{$f(b_k) \not = 0$ {\bf and} $|b_k - a_k| > \epsilon$}
-      \begin{align*}
-        s \gets &\frac{a_kf(b_k)f(b_{k-1})}{(f(a_k)-f(b_k))(f(a_k)-f(b_{k-1}))} \\
-        & + \frac{b_kf(a_k)f(b_{k-1})}{(f(b_k)-f(a_k))(f(b_k)-f(b_{k-1}))} \\
-        & + \frac{b_{k-1}f(a_k)f(b_k)}{(f(b_{k-1})-f(a_k))(f(b_{k-1})-f(b_k))}
-      \end{align*}
-      \State {\bf if} $\displaystyle s \not \in \left[ \frac{3a_k+b_k}{4},b_k \right]$
-             {\bf or}
-             \State ~~~~(mflag is True {\bf and}
-             \State ~~~~~~~~ ($\displaystyle |s-b_k| \geq \frac{|b_k-b_{k-1}|}{2}$
-             \State ~~~~~~~~~~ {\bf or} $|b_k-b_{k-1}| < |\delta|$)) {\bf or}
-             \State ~~~~(mflag is False {\bf and}
-             \State ~~~~~~~~ ($\displaystyle |s-b_k| \geq \frac{|b_{k-1}-b_{k-2}|}{2}$
-             \State ~~~~~~~~~~ {\bf or} $|b_{k-1}-b_{k-2}| < |\delta|$)) {\bf then}
-             \State ~~~~ $\displaystyle s \gets \frac{a_k+b_k}{2}$
-             \State ~~~~ mflag $\gets$ True
-             \State {\bf else}
-             \State ~~~~ mflag $\gets$ False
-        \State $b_{k-2} \gets b_{k-1}$
-        \State $b_{k-1} \gets b_k$
-        \If{$f(a_k)f(s) < 0$}
-          \State $b_k \gets s$
-        \Else
-          \State $a_k \gets s$
-        \EndIf
-        \If{$|f(a_k)| < |f(b_k)|$}
-          \Call{swap}{$a_k$,$b_k$}
-        \EndIf
+      \If{$|f(a_k)| < |f(b_k)|$}
+      \Call{swap}{$a_k$,$b_k$}
+      \EndIf
+      \State $b_{k+1} \gets$\Call{inv\_quad\_interp}{$f,a_k,b_k,b_{k-1}$}
+      \State $B$ $\gets$ \Call{need\_bisect}{$a_k$,$b_{k-2}$,$b_{k-1}$,$b_k$,$b_{k+1}$,$B$}
+      \If{$B$}
+        \State $\displaystyle b_{k+1} \gets \frac{a_k+b_k}{2}$ \Comment{bisection method}
+      \EndIf
+      \State $b_{k-2} \gets b_{k-1}$
+      \State $b_{k-1} \gets b_k$
+      \If{$f(a_k)f(s) < 0$}~~$b_k \gets s$
+      \Else~~$a_k \gets s$
+      \EndIf
       \EndWhile
+    \EndFunction
+  \end{algorithmic}
+  \begin{algorithmic}
+    \Function{need\_bisect}{$a_k$,$b_{k-2}$,$b_{k-1}$,$b_k$,$b_{k+1}$,$B$}
+      \If{$\displaystyle b_{k+1} \not \in \left[ \frac{3a_k+b_k}{4},b_k \right]$}
+      \State \Return True
+      \ElsIf{$B$ is True}
+      \State \Return
+        $\displaystyle |b_{k+1}-b_k| \geq \frac{|b_k-b_{k-1}|}{2}$
+      \State ~~~~~~~~~~~$\land$~~$|b_k-b_{k-1}| < |\delta|$
+      \Else~
+      \Return $\displaystyle |b_{k+1}-b_k| \geq \frac{|b_{k-1}-b_{k-2}|}{2}$
+      \State ~~~~~~~~~~~~~~$\land$~~$|b_{k-1}-b_{k-2}| < |\delta|$
+      \EndIf
+    \EndFunction
+  \end{algorithmic}
+  \begin{algorithmic}
+    \Function{inv\_quad\_interp}{$f$,$a$,$b$,$c$}
+      \If{$f(a) \not= f(c)$ {\bf and} $f(b) \not= f(c)$}
+        \State \Return $\displaystyle \frac{af(b)f(c)}{(f(a)-f(b))(f(a)-f(c))}$
+        \State ~~~~~~~~~~~$\displaystyle + \frac{bf(a)f(c)}{(f(b)-f(a))(f(b)-f(c))}$
+        \State ~~~~~~~~~~~$\displaystyle + \frac{cf(a)f(b)}{(f(c)-f(a))(f(c)-f(b))}$
+      \Else
+        \State \Return $\displaystyle b - f(b)\frac{b-a}{f(b)-f(a)}$
+      \EndIf
     \EndFunction
   \end{algorithmic}
 \end{algorithm}
@@ -424,13 +431,6 @@ $x_j$ and $y_j$, respectively, and plug into \eqref{eq:theta} to find a
 $\theta$. Finally, use $\theta$ in conjunction with \eqref{eq:weight} to assign
 weights to directions.
 
-\subsection{Weight for Elevation Gain}
-
-Now that weights have been assigned based on distance and direction, we can
-move on to worrying about elevation gain.
-
-FILL IN THIS SECTION
-
 \subsection{Miscellaneous Weights}
 
 There are a few more important characteristics to consider when calculating
@@ -446,7 +446,106 @@ rather boring, so by weighting against this, it can be avoided.
 
 \subsection{Using the Weights Together}
 
+Now that we have developed all of the weight calculations, we can consider using
+them to generate a route. Algorithm~\ref{alg:grow} lays out the basic idea in
+pseudocode. It omits definitions for many of the functions because they were
+covered in sufficient detail in previous sections. The general procedure is
+to loop until the algorithm returns to the start point after at least 90\%
+of the distance, $d$ is travelled. At each iteration, $\theta$ will be
+calculated using \eqref{eq:theta}, where $(x_j,y_j)$ are calculated by applying
+Algorithm~\ref{alg:brent} on \eqref{eq:dj}. Once $\theta$ is calculated, a
+weight is generated for each node adjacent to $x_i$, and one of the nodes is
+selected at random based on their weights.
+
+\begin{algorithm}[t!]
+  \caption{Calculating a Route} \label{alg:grow}
+  \begin{algorithmic}
+    \Require \Call{edges}{} finds adjacent nodes and \Call{random}{} generates
+    a random number in the given range.
+    \Function{grow\_cycle}{$x_0$,$d$,$e$,$\phi$}
+    \State $X \gets \{\}$ \Comment{the route}
+    \State $d_k \gets 0$
+    \State $\theta \gets \phi$
+
+    \While{$x_{k}\not = x_0$ {\bf or} $d_k < 0.9d$}
+      \State $\theta \gets$ \Call{get\_theta}{}
+
+      \State $w \gets 0$ \Comment{sum of all weights}
+      \For{$x \in$ \Call{edges}{$x_k$}}
+        \State $w \gets w +$\Call{weight}{$x$}
+      \EndFor
+      \State $q \gets$ \Call{random}{$[0,w]$} \Comment{to choose node}
+      \For{$x \in$ \Call{edges}{$x_k$}}
+        \If{$q < $ \Call{weight}{$x$,$\theta$}}
+          \State $x_{k+1} \gets x$
+          \State $d_{k+1} \gets d_k +$\Call{dist}{$x_k$,$x_{k+1}$}
+          \State $X \gets X \cup \{x_{k+1}\}$
+          \State break
+        \Else~$q \gets q -$\Call{weight}{$x$,$\theta$}
+        \EndIf
+      \EndFor
+    \EndWhile
+    \State \Return $X$
+  \EndFunction
+
+  \end{algorithmic}
+\end{algorithm}
+
 \section{Moving to Three Dimensions} \label{sec:latlong}
+
+\subsection{Distance Calculations}
+As mentioned earlier, using the Euclidian norm for latitudes and longitudes
+is highly inaccurate; latitudes and longitudes are more similar to 3D polar
+coordinates with a fixed $r$ than they are to a coordinate plane. The
+haversine formula is used to calculate distances between two points on the
+surface of a sphere. The haversine formula uses the haversin function,
+which is defined as follows:
+\newcommand{\haversin}{\mbox{haversin}}
+\[ \haversin (\theta) = \sin^2(\frac{\theta}{2}). \]
+Given two coordinate pairs, $(\phi_1, \lambda_1)$ and $(\phi_2, \lambda_2)$,
+and a radius, $r$, the haversine formula calculates the distance $d$ between
+the two coordinate pairs:
+\begin{align*}
+  d = r\haversin^{-1}(&\haversin(\phi_2 - \phi_1) + \\
+  & \cos(\phi_1)\cos(\phi_2)\haversin(\lambda_2 -\lambda_1)
+\end{align*}
+Using the definition of the haversin function, this can be reduced into a
+function in terms of elementary trigonometric functions. The only non-trivial
+thing to note is that $\haversin^{-1}(x) = 2\sin^{-1}(\sqrt{x})$. Armed with
+this knowledge, it is fairly easy to reduce. We'll use an intermediate variable
+to hold the value under the square root:
+\begin{align*}
+  h = & \haversin(\phi_2-\phi_1) + \\
+  & \cos(\phi_1)\cos(\phi_2)\haversin(\lambda_2-\lambda_1) \\
+  = & \sin^2\left(\frac{\phi_2 - \phi_1}{2}\right) + \\
+  & \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\lambda_2-\lambda_1}{2}\right)\\
+  d = & r\haversin^{-1}\left(\sqrt{h}\right) \\
+  = & 2r\sin^{-1}\left(\sqrt{h}\right)
+\end{align*}
+By simply substituting this as the right hand side of \eqref{eq:dj}, many of the
+projection issues can be avoided.
+
+\subsection{Ideal Loop Calculation}
+
+However, the actual ideal loop and, consequently,
+\eqref{eq:xj} and \eqref{eq:yj} depend on a set of parametric equations along
+a cartesian coordinate plane. These are an inaccurate representation of the
+intended ideal loop; as the loop progresses further from the equator, it will
+become increasingly squashed in the east/west direction.
+
+To find the proper loop, a cone must be projected from the origin of the sphere,
+and the intersection of the cone and the sphere can be used to calculate the
+ideal loop. The following equation describes a cone,
+\[ 0 = (u \cdot d)^2 - |d||u|\cos \phi , \]
+where $u= (x,y,z)$, $d = (a,b,c)$ is a vector parallel to the axis of the
+cone, and $\phi$ is one-half the aperture of the cone. Additionally, recall
+the equation for a sphere:
+\[ r = |u|. \]
+Unfortunately, both of these equations are of little aid, since they require
+input in the form of cartesian coordinates. We would like to convert these to
+a set of equations in spherical form. However, these equations become rather
+complicated; for now, we've accepted the projected sphere as ``good enough.''
+
 
 \section{Experimentation \& Results}
 
@@ -458,6 +557,10 @@ There are many ways to expand the algorithm developed here. While we have done
 our best to utilize as much data as possible, expanding the set of data utilized
 to generate the routes will likely improve the algorithm.
 
+Unfortunately, the API we used for OSM did not have easy access to elevation
+data, something that would have also proved very useful to cyclists. A more
+robust implementation of this algorithm would also find the elevation data of
+every coordinate and use this information to augment the weights.
 
  (ASK DAN FOR THIS
 PAPER) There has been research done into analyzing the probability of accidents
