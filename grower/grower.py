@@ -61,6 +61,7 @@ class Grower:
     # TODO implement this
     return 0
 
+
   NORTH = math.pi/2
   SOUTH = -math.pi/2
   WEST = math.pi
@@ -120,41 +121,72 @@ class Grower:
               (math.sin(2 * math.pi / distanceGoal * (dist + distIncrement)
                         + circledir) - math.sin(circledir)) + startLon)
 
+    def brent(a, b, node):
+      """Uses Brent's method to find the ideal x_j"""
+      epsilon = .0001
+      delta = .01
+
+
+      lat1, lon1 = self.data.nodes[node][0], self.data.nodes[node][1]
+      def f(increment):
+        lat2, lon2 = getIncrementedXOnIdealLoop(increment)
+        return self.coordDist(lat1, lon1, lat2, lon2) - increment
+
+      def inverseQuadraticInterpolation(x1, x2, x3):
+        if not f(x1) == f(x3) and not f(x2) == f(x3):
+          return x1*f(x2)*f(x3)/((f(x1)-f(x2))*(f(x1)-f(x3))) + \
+            x2*f(x1)*f(x3)/((f(x2)-f(x1))*(f(x2)-f(x3))) + \
+            x3*f(x1)*f(x2)/((f(x3)-f(x1))*(f(x3)-f(x2)))
+        else:
+          return x2 - f(x2)*(x2-x1)/(f(x2)-f(x1))
+
+      def needsBisection(left, prev2, prev1, prev, guess, bisectedLastTime):
+        if guess > max(prev,(3*left + prev)/4) or \
+           guess < min(prev,(3*left + prev)/4):
+          return True
+        elif bisectedLastTime:
+          return abs(guess - prev) >= abs(prev - prev1)/2 \
+            and abs(prev - prev1) < delta
+        else:
+          return abs(guess - prev) >= abs(prev1 - prev2)/2 \
+            and abs(prev1 - prev2) < delta
+
+      # require that we have valid bounds
+      if f(a)*f(b) > 0: return None
+
+      if abs(f(a)) < abs(f(b)): a,b = b,a
+      prev = a
+      prev1 = a
+      prevBisect = True
+
+      while not f(b) == 0 and abs(b - a) > epsilon:
+        if abs(f(a)) < abs(f(b)): a, b = b, a
+
+        guess = inverseQuadraticInterpolation(a, b, prev)
+        prevBisect = needsBisection(a,prev1,prev,b,guess,prevBisect)
+
+        if prevBisect: guess = (a + b)/2
+
+        prev1 = prev
+        prev = b
+        if f(guess)*f(a) < 0: b = guess
+        else: a = guess
+
+      if abs(f(a)) < abs(f(b)): return a
+      else: return b
+
     def getTheta():
       """Gets the ideal angle for the next node to come"""
       if prev == start: return initdirection
 
-      lat = self.data.nodes[prev][0]
-      lon = self.data.nodes[prev][1]
+      increment = brent(0, distanceGoal - dist, prev)
 
-      minDiff = distanceGoal
-      minDist = distanceGoal
-      # attempt incrementing by 1% of the loop
-      idealLoopDist = .01*distanceGoal
-      while idealLoopDist < distanceGoal - dist:
-        # calculate new values
-        latIdeal, lonIdeal = getIncrementedXOnIdealLoop(idealLoopDist)
-        realDist = self.coordDist(lat, lon, latIdeal, lonIdeal)
-        distDiff = abs(realDist - idealLoopDist)
-
-        # found a new best
-        if distDiff < minDiff or minDiff < 0:
-          print "found a new best", distDiff, realDist, idealLoopDist
-          minDiff = distDiff
-          minDist = realDist
-          bestcoords = (latIdeal, lonIdeal)
-
-        # within 1%; accept it regardless of future results
-        if distDiff < .01*realDist:
-          return self.getAngleFromCoords(lat, lon, latIdeal, lonIdeal)
-
-        idealLoopDist += .01*distanceGoal
-
-      if dist + minDist < distanceGoal:
-        return self.getAngleFromCoords(lat,lon,bestcoords[0], bestcoords[1])
-
-      # only reasonable solution is just routing back to the start
-      else: return None
+      if not increment: return None
+      else:
+        latIdeal, lonIdeal = getIncrementedXOnIdealLoop(increment)
+        return self.getAngleFromCoords(self.data.nodes[prev][0],
+                                       self.data.nodes[prev][1],
+                                       latIdeal, lonIdeal)
 
     cycle = []
     prev = start
@@ -165,7 +197,6 @@ class Grower:
     while prev != start or dist < 0.9*distanceGoal:
       # finds the best node to go to next
       theta = getTheta()
-      print theta
 
       # need to route back to start
       if theta == None:

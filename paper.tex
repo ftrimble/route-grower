@@ -1,18 +1,20 @@
-\documentclass[twocolumn,11pt]{article}
+\documentclass[twocolumn,12pt]{article}
 
 \textheight 9 in
 \voffset -.75 in
 
 \usepackage{amssymb}
 \usepackage{amsmath}
+\usepackage{bm}
 \usepackage{graphicx}
 \usepackage{epstopdf}
+\usepackage{hyperref}
+\usepackage{natbib}
 \usepackage{tikz}
 \usepackage{fancyhdr}
 \usepackage{algpseudocode}
 \usepackage{algorithm}
 \usepackage[toc,page]{appendix}
-\usepackage{url}
 
 \setlength{\parskip}{5pt plus1pt minus1pt}
 
@@ -30,6 +32,8 @@
 \fancyhead[R]{Train Harder, Smarter}
 \maketitle
 
+\newcommand{\mycite}[1]{[\citenum{#1}]}
+
 \begin{abstract}
   \emph{Cyclists are always in search of the perfect ride on the perfect
   roads. They have criteria like distance and elevation gain to ensure
@@ -41,7 +45,7 @@
   for, without them having to do any work.}
 \end{abstract}
 
-\section{Background}
+\section{Background} \label{sec:back}
 
 Cycling can be wildly different based on the roads that one takes: On busy
 roads with no shoulders, it can be borderline miserable, while few things in
@@ -69,16 +73,24 @@ tools and technologies that the algorithm leverages.
 First and foremost, we opted to use the Open Street Map format, which is open
 source, fairly robust, and has a very active community that contributes to both
 the maps themselves and to various (mostly open-source) software projects that
-utilize the format. More information on this format can be found on their
-website, openstreetmap.org.
+utilize the format. The interested reader should refer to \citenum{wik:osm} for
+almost all information regarding OSM, including how to contribute, how to use,
+and links to projects that utilize OSM instead of proprietary mapping software.
 
 Additionally, we leveraged some existing code to more easily be able to create
 a demonstrable algorithm. Pyroute was used, since it has the very nice feature
 that the navigation component was entirely decoupled into PyrouteLib. This
 allows easy utilization of the Pyroute tools for GUI setup and OSM download
-while also making it rather explicit where the navigation functions are. The
-OSM wiki pages have a good deal of information
-on Pyroute and PyrouteLib; refer to them for more information.
+while also making it rather explicit where the navigation functions are.
+Notably, pyroute has generally been abandoned in favor of the more advanced
+Open Source Routing Machine (OSRM) project, but pyroute was chosen for this
+paper instead due to its relative ease of prototyping and intuitiveness. Readers
+interested in OSRM should refer to \mycite{wik:osrm}; those interested in
+pyroute can sate their interest with \mycite{wik:pyroute}. One notes that
+pyroute uses the relatively simple $A^*$ algorithm for routing between two
+points. This is a slower implementation than OSRM, but our usage of the actual
+routing algorithm is minimal; for the most part, we use pyroute only for loading
+maps and displaying routes on them.
 
 \section{Algorithm}
 
@@ -126,10 +138,13 @@ to the Open Street Map network of roads):
 The first weight is based on distance. The idea is that there is a theoretical,
 perfect loop that covers exactly the amount of distance that you would like,
 and the algorithm does its best to direct you along that loop. See
-Figure~\ref{fig:ideal} for an example of what this might look like.In order to
+Figure~\ref{fig:ideal} for an example of what this might look like. In order to
 direct you along this loop, weights are generated based on
 direction. We'll consider the method for finding the optimal direction,
 $\theta$.
+
+
+\subsubsection{Calculating the Weights}
 
 \begin{figure}
   \centering
@@ -147,8 +162,6 @@ $\theta$.
   \end{tikzpicture}
   \caption{A possible weighted compass} \label{fig:weights}
 \end{figure}
-
-\subsubsection{Calculating the Weights}
 
 First, consider how the weights are generated once
 that direction is discovered. Basically, there is a weighted compass oriented
@@ -257,7 +270,7 @@ Incorporating this yields the final equations:
   \begin{tikzpicture}
     \draw (2,0) circle(2);
     \filldraw (0,0) circle(0.05);
-    \node at (0.4,0.1) {$x_0$};
+    \node at (0.4,0.1) {$\bm{x_0}$};
 
     \draw[thick,<->] (-0.2,0) arc (180:300:2.2);
     \node at (0.6,-2) {$d_i$};
@@ -267,10 +280,10 @@ Incorporating this yields the final equations:
     \node at (4.2,-1.3) {$d_j$};
 
     \filldraw (4,0) circle(0.05);
-    \node at (4.2,0.2) {$x_j$};
+    \node at (4.2,0.2) {$\bm{x_j}$};
 
-    \node at (1.8,-0.7) {$x_i$};
-    \node at (2.7,-1.4) {$x_{\mbox{{\tiny ideal}}}$};
+    \node at (1.8,-0.7) {$\bm{x_i}$};
+    \node at (2.7,-1.4) {$\bm{x}_{\mbox{{\tiny ideal}}}$};
 
     \filldraw (2.1,-0.7) circle (0.05);
 
@@ -285,17 +298,18 @@ Incorporating this yields the final equations:
 \end{figure}
 
 The next step is to utilize these equations to calculate $\theta$. At any point
-along the algorithm, we are at some $x_i$, and we have travelled a distance,
-$d_i$. Figure~\ref{fig:algvals} should help to understand what exactly the
-algorithm is attempting to achieve. The idea is this: if we have travelled some
-distance $d_i$, then there is an $x_{\mbox{{\tiny ideal}}}$ on the ``ideal''
-loop. The arc between $x_{\mbox{{\tiny ideal}}}$ and $x_0$ will be of length
-$d_i$. The algorithm searches for a point $x_j$ such that the arc between
-$x_{\mbox{{\tiny ideal}}}$ and $x_j$ will have the \emph{same} distance as the
-line between $x_i$ and $x_j$. Fortunately, we have framed the equations for
-calculating $x_j$ in terms of the distance travelled along the arc, and the
-distance between $x_i$ and $x_j$ can easily be calculated using the pythagorean
-theorem. Note that we find $x_j$ as follows:
+along the algorithm, we are at some $\bm{x_i}$, and we have travelled a
+distance, $d_i$. Figure~\ref{fig:algvals} should help to understand what exactly
+the algorithm is attempting to achieve. The idea is this: if we have travelled
+some distance $d_i$, then there is an $\bm{x}_{\mbox{{\tiny ideal}}}$ on then
+``ideal'' loop. The arc between $\bm{x}_{\mbox{{\tiny ideal}}}$ and $\bm{x_0}$
+will be of length $d_i$. The algorithm searches for a point $x_j$ such that the
+arc between $\bm{x}_{\mbox{{\tiny ideal}}}$ and $\bm{x_j}$ will have the
+\emph{same} distance as the line between $\bm{x_i}$ and $\bm{x_j}$. Fortunately,
+we have framed the equations for calculating $\bm{x_j}$ in terms of the distance
+travelled along the arc, and the distance between $\bm{x_i}$ and $\bm{x_j}$ can
+easily be calculated using the pythagorean theorem. Note that we find $\bm{x_j}$
+as follows:
 \begin{align}
   x_j = \frac{d}{2\pi} ( & \cos( \frac{ 2 \pi }{ d } ( \min( d, d_i + d_j ) )
                                   + \phi ) \notag \\ & - \cos \phi ) + x_0
@@ -334,9 +348,79 @@ we have bounds inside of which we know that there exists a solution. We apply
 Brent's method, a robust root approximation algorithm, to determine the solution
 inside of this zone. The idea behind Brent's method is to combine the bisection
 method, the secant method, and inverse quadratic interpolation. Readers
-unfamiliar with any of these techniques should refer to CITATIONS. Some
-pseudocode is given for Brent's Method in Algorithm~\ref{alg:brent}. The idea
+unfamiliar with any of these techniques should refer to \mycite{wik:sec},
+\mycite{wik:bisect}, \mycite{wik:invquad}, \mycite{wik:brent} for a brief
+overview of the techniques. A more interested reader might consider
+\mycite{sauanal} for an in-depth analysis of the techniques as well as some
+context for using and understanding them. Some pseudocode is given for Brent's
+Method in Algorithm~\ref{alg:brent}, with some helper functions in
+Algorithm~\ref{alg:bhelp}. The idea
 is this:
+
+\begin{algorithm}[t]
+  \caption{Using Brent's Method to find a zero of a function}
+  \label{alg:brent}
+  \begin{algorithmic}
+    \Require $f(a_0)f(b_0) > 0$
+    \Function{Brent}{$f : [a,b] \to \mathbb{R}$, $a_0$, $b_0$}
+      \If{$|f(a_0)| < |f(b_0)|$}
+        \State \Call{swap}{$a_0$,$b_0$}
+      \EndIf
+      \State $b_{k-1} \gets a_0$
+      \State $B \gets$ True \Comment{bisected last time?}
+      \While{$f(b_k) \not = 0$ {\bf and} $|b_k - a_k| > \epsilon$}
+      \If{$|f(a_k)| < |f(b_k)|$}
+        \State \Call{swap}{$a_k$,$b_k$}
+      \EndIf
+      \State $b_{k+1} \gets$\Call{inv\_quad\_interp}{$f,a_k,b_k,b_{k-1}$}
+      \State $B$ $\gets$ \Call{nds\_bi}{$a_k$,$b_{k-2}$,$b_{k-1}$,$b_k$,$b_{k+1}$,$B$}
+      \If{$B$} \Comment{use bisection method}
+        \State $\displaystyle b_{k+1} \gets \frac{a_k+b_k}{2}$
+      \EndIf
+      \State $b_{k-2} \gets b_{k-1}$
+      \State $b_{k-1} \gets b_k$
+      \If{$f(a_k)f(s) < 0$}
+        \State $b_k \gets s$
+      \Else
+        \State $a_k \gets s$
+      \EndIf
+      \EndWhile
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}
+\begin{algorithm}[t!]
+  \caption{Helper functions for Brent's method} \label{alg:bhelp}
+  \begin{algorithmic}
+    \State \Comment{\emph{Determines whether to use bisection~~~~~~~}}
+    \State \Comment{\emph{method or inverse quadratic~~~~~~~~~~~~~~~~~}}
+    \State \Comment{\emph{interpolation~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}}
+    \Function{nds\_bi}{$a_k$,$b_{k-2}$,$b_{k-1}$,$b_k$,$b_{k+1}$,$B$}
+      \If{$\displaystyle b_{k+1} \not \in \left[ \frac{3a_k+b_k}{4},b_k \right]$}
+      \State \Return True
+      \ElsIf{$B$ is True}
+      \State \Return
+        $\displaystyle |b_{k+1}-b_k| \geq \frac{|b_k-b_{k-1}|}{2}$
+      \State ~~~~~~~~~~~$\land$~~$|b_k-b_{k-1}| < |\delta|$
+      \Else
+      \State \Return $\displaystyle |b_{k+1}-b_k| \geq \frac{|b_{k-1}-b_{k-2}|}{2}$
+      \State ~~~~~~~~~~~$\land$~~$|b_{k-1}-b_{k-2}| < |\delta|$
+      \EndIf
+    \EndFunction
+  \end{algorithmic}
+  \begin{algorithmic}
+    \State \Comment{\emph{returns the next iterate under inverse~~~~~}}
+    \State \Comment{\emph{quadratic interpolation~~~~~~~~~~~~~~~~~~~~~~~~~}}
+    \Function{inv\_quad\_interp}{$f$,$a$,$b$,$c$}
+      \If{$f(a) \not= f(c)$ {\bf and} $f(b) \not= f(c)$}
+        \State \Return $\displaystyle \frac{af(b)f(c)}{(f(a)-f(b))(f(a)-f(c))}$
+        \State ~~~~~~~~~~~$\displaystyle + \frac{bf(a)f(c)}{(f(b)-f(a))(f(b)-f(c))}$
+        \State ~~~~~~~~~~~$\displaystyle + \frac{cf(a)f(b)}{(f(c)-f(a))(f(c)-f(b))}$
+      \Else
+        \State \Return $\displaystyle b - f(b)\frac{b-a}{f(b)-f(a)}$
+      \EndIf
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}
 
 First, we need a bracket in which our function has a root. For us, this is
 simple enough; we just use $[0, d-d_i]$. If that bracket does not satisfy the
@@ -345,7 +429,7 @@ condition, we just set $d_j = d-d_i$ and don't bother with anything.
 The algorithm details out the actual swapping of $a_k$ and $b_k$, but here
 we'll just assume that $|f(a_k)| > |f(b_k)|$ at all points in time; that is,
 $b_k$ is a better approximation of the solution than $a_k$. We also require
-$b_{k-1}$; for now, we'll set it to $a_k$.
+$b_{k-1}$; at the beginning, $a_k$ will suffice instead.
 
 This is a heuristic, so we'll keep repeating the algorithm until either
 $a_k \approx b_k$ or $f(b_k) \approx 0$. At the $k^{\mbox{{\tiny th}}}$ iteration,
@@ -360,61 +444,6 @@ interval, and the iterates need to obey certain bounds.
 The rest of the pseudocode serves only to ensure that variables are assigned
 correctly. One notes that $B$ indicates whether the bisection method was used
 on the previous iteration.
-
-\begin{algorithm}
-  \caption{Using Brent's Method to find a zero of a function}
-  \label{alg:brent}
-  \begin{algorithmic}
-    \Require $f(a_0)f(b_0) > 0$
-    \Function{Brent}{$f : [a,b] \to \mathbb{R}$, $a_0$, $b_0$}
-      \If{$|f(a_0)| < |f(b_0)|$}
-        \Call{swap}{$a_0$,$b_0$}
-      \EndIf
-      \State $b_{k-1} \gets a_0$
-      \State $B \gets$ True \Comment{bisected last time?}
-      \While{$f(b_k) \not = 0$ {\bf and} $|b_k - a_k| > \epsilon$}
-      \If{$|f(a_k)| < |f(b_k)|$}
-      \Call{swap}{$a_k$,$b_k$}
-      \EndIf
-      \State $b_{k+1} \gets$\Call{inv\_quad\_interp}{$f,a_k,b_k,b_{k-1}$}
-      \State $B$ $\gets$ \Call{need\_bisect}{$a_k$,$b_{k-2}$,$b_{k-1}$,$b_k$,$b_{k+1}$,$B$}
-      \If{$B$}
-        \State $\displaystyle b_{k+1} \gets \frac{a_k+b_k}{2}$ \Comment{bisection method}
-      \EndIf
-      \State $b_{k-2} \gets b_{k-1}$
-      \State $b_{k-1} \gets b_k$
-      \If{$f(a_k)f(s) < 0$}~~$b_k \gets s$
-      \Else~~$a_k \gets s$
-      \EndIf
-      \EndWhile
-    \EndFunction
-  \end{algorithmic}
-  \begin{algorithmic}
-    \Function{need\_bisect}{$a_k$,$b_{k-2}$,$b_{k-1}$,$b_k$,$b_{k+1}$,$B$}
-      \If{$\displaystyle b_{k+1} \not \in \left[ \frac{3a_k+b_k}{4},b_k \right]$}
-      \State \Return True
-      \ElsIf{$B$ is True}
-      \State \Return
-        $\displaystyle |b_{k+1}-b_k| \geq \frac{|b_k-b_{k-1}|}{2}$
-      \State ~~~~~~~~~~~$\land$~~$|b_k-b_{k-1}| < |\delta|$
-      \Else~
-      \Return $\displaystyle |b_{k+1}-b_k| \geq \frac{|b_{k-1}-b_{k-2}|}{2}$
-      \State ~~~~~~~~~~~~~~$\land$~~$|b_{k-1}-b_{k-2}| < |\delta|$
-      \EndIf
-    \EndFunction
-  \end{algorithmic}
-  \begin{algorithmic}
-    \Function{inv\_quad\_interp}{$f$,$a$,$b$,$c$}
-      \If{$f(a) \not= f(c)$ {\bf and} $f(b) \not= f(c)$}
-        \State \Return $\displaystyle \frac{af(b)f(c)}{(f(a)-f(b))(f(a)-f(c))}$
-        \State ~~~~~~~~~~~$\displaystyle + \frac{bf(a)f(c)}{(f(b)-f(a))(f(b)-f(c))}$
-        \State ~~~~~~~~~~~$\displaystyle + \frac{cf(a)f(b)}{(f(c)-f(a))(f(c)-f(b))}$
-      \Else
-        \State \Return $\displaystyle b - f(b)\frac{b-a}{f(b)-f(a)}$
-      \EndIf
-    \EndFunction
-  \end{algorithmic}
-\end{algorithm}
 
 Thus, by utilizing Brent's Algorithm, we can find $x_j$. From here, calculating
 $\theta$ is fairly straightforward:
@@ -439,17 +468,28 @@ that the Open Street Map format provides. It is easy enough to assign these
 priorities based on what a cyclist would reasonably hope to see. Basically,
 busy roads get weighted lower than low-traffic roads, but things like
 pedestrian walkways and other unridable roads also get high weights.
+Interestingly, pyroute already sets weights for these values, but these are
+generated based on preferences for navigating; these vary greatly from
+preferences for going out and having a good time. A good example of this is the
+weight that pyroute assigns for cycling on steps, which is not 0. It is
+certainly possible for the cyclist to dismount and climb the steps, but one who
+is riding for fun is highly unlikely to be excited about this prospect.
 
 Another characteristic to consider is whether a road has already been
 travelled. Repeatedly riding along the same stretch of road can make a ride
-rather boring, so by weighting against this, it can be avoided.
+rather boring, so by weighting against this, it can be avoided. In order to deal
+with this, the algorithm stores stretches of road that have been travelled and
+halves the weight of any path that the rider has already ridden.
 
-\subsection{Using the Weights Together}
+\subsection{Using the Weights to Generate a Route}
 
 Now that we have developed all of the weight calculations, we can consider using
 them to generate a route. Algorithm~\ref{alg:grow} lays out the basic idea in
 pseudocode. It omits definitions for many of the functions because they were
-covered in sufficient detail in previous sections. The general procedure is
+covered in sufficient detail in previous sections. In particular the function
+for calculating weights is omitted, but it utilizes the algorithms and
+characteristics discussed in previous sections
+The general procedure is
 to loop until the algorithm returns to the start point after at least 90\%
 of the distance, $d$ is travelled. At each iteration, $\theta$ will be
 calculated using \eqref{eq:theta}, where $(x_j,y_j)$ are calculated by applying
@@ -472,9 +512,9 @@ selected at random based on their weights.
 
       \State $w \gets 0$ \Comment{sum of all weights}
       \For{$x \in$ \Call{edges}{$x_k$}}
-        \State $w \gets w +$\Call{weight}{$x$}
+        \State $w \gets w +$\Call{weight}{$x$,$\theta$}
       \EndFor
-      \State $q \gets$ \Call{random}{$[0,w]$} \Comment{to choose node}
+      \State $q \gets$ \Call{random}{$[0,w]$}
       \For{$x \in$ \Call{edges}{$x_k$}}
         \If{$q < $ \Call{weight}{$x$,$\theta$}}
           \State $x_{k+1} \gets x$
@@ -491,28 +531,37 @@ selected at random based on their weights.
   \end{algorithmic}
 \end{algorithm}
 
-\section{Moving to Three Dimensions} \label{sec:latlong}
+\section{Using Spherical Coordinates} \label{sec:latlong}
 
 As mentioned earlier, using the Euclidian norm for latitudes and longitudes
-is highly inaccurate; latitudes and longitudes are spherical coordinates with
-fixed $r$, so considering the latitude and longitude to be $x$ and $y$ values is
-a very flawed idea. As one can see in Figure~\ref{fig:sphere}, the contrast is
-stark. Latitude and longitudes are angles, not positions in space.
+is inaccurate; latitudes and longitudes are spherical coordinates  with
+fixed $r$. As one can see in Figure~\ref{fig:sphere},
+spherical coordinates are the three dimensional
+equivalent of polar coordinates. Unfortunately, this poses two problems,
+since we have only described generating a route around the origin in a two
+dimensional plane. The first problem is switching to a spherical coordinate
+system; the second is switching to three dimensions. Clearly,
+considering the latitude and longitude to be values on a cartesian
+coordinate plane is a flawed idea. Latitudes and longitudes are angles, not
+positions in space.
 
 \begin{figure}
-  \includegraphics[width=3in]{images/558px-3D_Spherical.png}
-  \caption{The Spherical Coordinate System} \label{fig:sphere}
+  \centering
+  \includegraphics[height=2in]{images/sphere.png}
+  \caption{The Spherical Coordinate System~\mycite{img:spher}} \label{fig:sphere}
 \end{figure}
 
 \subsection{Distance Calculations}
-The haversine formula is used to calculate distances between two points on the
-surface of a sphere. The haversine formula uses the haversin function,
+Fortunately, distances are very well defined under any coordinate system, so we
+can tackle both problems here without much ado. In the spherical coordinate
+system, The haversine formula is used to calculate distances between two points
+on the surface of a sphere. The haversine formula uses the haversin function,
 which is defined as follows:
 \newcommand{\haversin}{\mbox{haversin}}
 \[ \haversin (\theta) = \sin^2(\frac{\theta}{2}). \]
 Given two coordinate pairs, $(\phi_1, \lambda_1)$ and $(\phi_2, \lambda_2)$,
 and a radius, $r$, the haversine formula calculates the distance $d$ between
-the two coordinate pairs:
+the two coordinate pairs \mycite{wik:haversin}:
 \begin{align*}
   d = r\haversin^{-1}(&\haversin(\phi_2 - \phi_1) + \\
   & \cos(\phi_1)\cos(\phi_2)\haversin(\lambda_2 -\lambda_1)
@@ -533,29 +582,65 @@ to hold the value under the square root:
 By simply substituting this as the right hand side of \eqref{eq:dj}, many of the
 projection issues can be avoided.
 
+ However, it still isn't perfect; the haversine
+formula does not account for variations in the elevation of the earth. Instead,
+it assumes one is travelling at sea level. Additionally, it assumes the earth is
+a perfect sphere, which is also slightly inaccurate. Less accurate formulae
+include flat-surface projection formulae, while more accurate formulae
+generate geodesics along the surface of an ellipsoid that models the earth
+\mycite{wik:dist}. For our purposes, however, the haversine formula will be
+sufficiently accurate.
+
 \subsection{Ideal Loop Calculation}
 
-However, the actual ideal loop and, consequently,
+Distance calculations are the easier half of the problem;
+the actual ideal loop and, consequently,
 \eqref{eq:xj} and \eqref{eq:yj} depend on a set of parametric equations along
-a cartesian coordinate plane. These are an inaccurate representation of the
-intended ideal loop; as the loop progresses further from the equator, it will
-become increasingly squashed in the east/west direction.
+a cartesian coordinate plane. We'll consider a few different methods for
+converting to spherical coordinates.
+
+\subsubsection{A Na\"{i}ve Approach} \label{sec:naiveloop}
+
+The first, and perhaps most obvious, method is to simply use latitude and
+longitude as the $x$ and $y$ in \eqref{eq:xj} and \eqref{eq:yj}. This is
+not a superb solution, but it does have a few advantages, chief of which are
+the relative ease of computation and development. For small loops relatively
+close to the equator, it may even be fairly similar to the intended ideal loop.
+
+However, the larger the loop and the further from the equator the more squashed
+the loop will begin to be. One also notes that the conversion does require a
+slight change to the original formulae: one cannot use $d$ as the radius of the
+circle. Instead, one must use an approximate conversion of the input distance
+to an angular delta. Latitudinal distances change very little (they only
+change because the Earth is an ellipsoid, not a sphere), and, as such, the
+nautical mile was derived as the distance between a minute of latitude
+\mycite{wik:nautmil}. Thus, we can easily convert between a distance goal and an
+approximate latitudinal radius. Unfortunately, this will be dramatically
+incorrect the closer to the poles we get.
+
+\subsubsection{Accurate Approach}
 
 \begin{figure}
   \centering
   \includegraphics[width=2in]{images/220px-Numerical_aperture.png}
-  \caption{The aperture of a cone} \label{fig:aperture}
+  \caption{The half-aperture of a cone \mycite{img:aperture}} \label{fig:aperture}
 \end{figure}
-To find the proper loop, a cone must be projected from the origin of the sphere,
-and the intersection of the cone and the sphere can be used to calculate the
-ideal loop. The following equation describes a cone,
-\[ 0 = (u \cdot d)^2 - |d||u|\cos \phi , \]
-where $u= (x,y,z)$, $d = (a,b,c)$ is a vector parallel to the axis of the
-cone, and $\phi$ is one-half the aperture of the cone. In
+
+To find the real ideal loop, a cone must be projected from the origin of the
+sphere, and the intersection of the cone and the sphere can be used to calculate
+the ideal loop. Note that this approach, while far superior to the flattened
+approach, still does not compensate for the ellipsoidal nature of the Earth, or
+for the variations in the elevation on the surface of the earth.
+
+The following equation describes a cone:,
+\[ 0 = (\bm{u} \cdot \bm{d})^2 - |\bm{d}|^2|\bm{u}|^2\cos^2 \phi , \]
+where $\bm{u}= (x,y,z)$, $\bm{d} = (a,b,c)$ is a vector parallel to the axis of
+the cone, and $\phi$ is one-half the aperture of the cone \mycite{wik:cones}. In
 Figure~\ref{fig:aperture}, the $\theta$ pictured is the same as the $\phi$ in
-this equation. Additionally, recall
-the equation for a sphere:
-\[ r = |u|. \]
+this equation; we have used $\phi$ instead of the more accepted $\theta$ to
+avoid confusion with the zenith in spherical coordinates.
+Additionally, recall the equation for a sphere:
+\[ r = |\bm{u}|. \]
 For the most part, we can consider $r = 1$, since we are dealing with the
 surface of a sphere. However, we do have to make certain calculations using
 the actual radius of the earth. For example, in order to calculate the
@@ -566,52 +651,126 @@ $\phi$ as follows:
   \phi = \sin^{-1} \left( \frac{\frac{d}{2\pi}}{r} \right) \label{eq:phi}
 \end{equation}
 
-Unfortunately, the equations for spheres and cones are of little aid, since
-they require
-input in the form of cartesian coordinates. We would like to convert these to
-a set of equations in spherical form. However, these equations become rather
-complicated; for now, we've accepted the projected circle as ``good enough.''
+With $r = 1$, we do our best to create an equation for the circle of interest:
+\begin{align*}
+  0 = & (\bm{u}\cdot \bm{d})^2 - |\bm{d}|^2|\bm{u}|^2\cos^2 \phi \\
+    = & (ax + by + cz)^2 - \cos^2 \phi \\
+    = & a^2x^2 + b^2y^2 + c^2z^2 \\
+    & + 2abxy + 2acxz
+     + 2bcyz - \cos^2 \phi \\
+\end{align*}
+
+Unfortunately, these equations for spheres and cones are of little aid. The
+ parametric equations for a circle are inspired by the polar coordinate form
+of a circle, so we convert these equations to spherical form. Ideally, this will
+likewise inspire a set of parametric equations for this circle.
+\begin{align*}
+  0 = & a^2x^2 + b^2y^2 + c^2z^2 \\
+      & 2abxy + 2acxz + 2bcyz - \cos^2 \phi \\
+    = & a^2\cos^2 \psi + b^2\sin^2 \psi + c^2\sin^2 \theta \\
+      & + 2ab\cos \psi\sin \psi + 2ac\cos \psi \sin \theta \\
+      & + 2bc\sin \psi \sin \theta  - \cos \phi
+\end{align*}
+Unfortunately, this doesn't make much headway. Without further inspiration,
+we'll stick with the na\"{i}ve approach discussed in
+Section~\ref{sec:naiveloop}.
 
 \section{Experimentation \& Results}
 
-\section{Discussion}
+At first, the algorithm was rather unsuccessful. The generated weights may have
+been useful, but a few things kept them from being very successful. First, the
+weights were calculated at every node. This means that at every point along a
+road, it would be determined if one should continue down the road or turn around
+and head back in the other direction. Unfortunately, since many roads are rather
+curvy, the weights could often tell the user to oscillate back and forth on a
+single road for an entirely uninteresting ride.
+
+In subsequent iterations of the algorithm, this was noticed and adjusted for;
+instead, the next intersection is found, and the weights are calculated for the
+point at the next intersection. This also allows for weights for previously
+travelled sections of road to be compressed to pairs of nodes for each stretch
+between an intersection.
+
+Another issue arose with the preliminary calculation of $\theta$. At first, a
+much more na\"{i}ve approach was taken. Instead of using Brent's method to find
+the zeroes of \eqref{eq:dj}, the algorithm simply divided the search space into
+one hundred sections and chose the section that was closest. 
+
+Another difficult issue was getting the algorithm to terminate. Sometimes the
+algorithm might get stuck in a dead end where $x_0$ is a straight line through
+the dead end as the crow flies, so the algorithm weights continuing down the
+dead end higher. Even if something like this did not happen, the loops were
+almost invariably well above the distance input. In order to avoid this problem,
+the algorithm utilizes point-to-point routing to route back to the start once
+$d_i + \|\bm{x}_0-\bm{x}_i\| > 0.95d$; that is, once the direct distance between
+the current point and the starting point summed with the distance travelled is
+more than 95\% of the distance goal. This allows for both flexibility and
+variation. If the route back to the starting point is direct, the loop will be
+somewhat below the desired distance goal. On the other hand, if the route back
+to the starting point is less direct, the loop will slightly exceed the input
+distance goal.
 
 \section{Future Work}
 
 There are many ways to expand the algorithm developed here. While we have done
 our best to utilize as much data as possible, expanding the set of data utilized
-to generate the routes will likely improve the algorithm.
+to generate the routes will likely improve the algorithm. Additionally, some
+features were abandoned due to time constraints.
 
 Unfortunately, the API we used for OSM did not have easy access to elevation
 data, something that would have also proved very useful to cyclists. A more
 robust implementation of this algorithm would also find the elevation data of
-every coordinate and use this information to augment the weights.
+every coordinate and use this information to augment the weights. This would
+also give rise to some very interesting challenges due to the competing
+interests of elevation and distance.
 
- (ASK DAN FOR THIS
-PAPER) There has been research done into analyzing the probability of accidents
+There has been research done into analyzing the probability of accidents
 on a road based on certain metadata. This metadata is readily available to the
-cities that own the roads, but it is seldom available for direct access inside
-of maps. If this data becomes more readily available, then it can be integrated
-into the application to help increase user safety.
+cities that maintain the roads, but it is beyond the scope of the information
+contained in OSM data or even better-funded mapping applications such as
+Google Maps. Ideally, as time progresses the data will percolate into these
+services; if this data becomes more readily available, then it can be integrated
+into the algorithm to help increase user safety.
 
-Additionally, this has been a facet of a three pronged project developing a
-platform for bicycle training. The other two aspects are developing an Android
-application to track training data during a ride and a website to track
+Additionally, this has been a facet of a three pronged project developing an
+immersive experience for bicycle training. The other two prongs are an
+Android application to track training data during a ride and a website to track
 long-term training data. Ideally, this algorithm will eventually be seamlessly
 integrated into the mobile and web projects, so that routes can be generated
-and sent directly to the application for the user to follow.
+on the web and sent directly to the user's mobile phone for the user to follow
+with the Android application.
 
 Once the three prongs of this project have been integrated together, leveraging
 the data from the other parts would also provide valuable input for the
-algorithm. One of the most exciting applications of this information is to
-generate something similar to a heatmap of roads that users of the website
-ride. With this heatmap, the weights could be improved and generated based on
-popularity.
+algorithm. As mentioned in Section~\ref{sec:back}, cyclists generally perform
+their own version of this algorithm to find routes that they will enjoy. Once
+the web experience is fully fleshed out users will upload all of their rides
+to the website so that they can be viewed and analyzed in the future. This also
+provides extremely valuable data for the algorithm, since user generated routes
+may favor better, more interesting roads than a purely weight driven experience.
+With this data, the algorithm could add a ``heatmap'' layer to the algorithm
+that keeps track of how popular a road is. Roads that are seldom used could be
+weighted negatively, while extremely popular roads would be almost mandatorily
+included in generated routes.
 
-Finally, it might be interesting to generate routes that are not necessarily
-circuits. Loops are generally more useful since cyclists are likely to want
-to return home after a good training ride, but it might also be useful to
-have some sort of quasi-navigation that aims for the most fun route
-between two locations rather than the most direct route.
+Another valuable extension would be to generate routes that are not necessarily
+circuits. In this paper, we have focused on loops since cyclists are likely to
+want to return home after a good training ride. However, it might also be useful
+to have some sort of quasi-navigation that aims for the most fun route
+between two locations rather than the most direct route. This way, riders might
+be able to mix commute and training.
+
+Additionally, it might be worthwhile to explore other methods for generating
+routes. A weight based algorithm makes randomization fairly easy, but other
+concepts certainly exist. Another idea might be to just take a
+breadth-first-search that returns to the start and choose at random one of the
+solutions that is within some epsilon of the distance goal. This approach may
+be a pretty solid one, but it does raise some challenges when extended for
+additional goals, and enumerating all possibilities may prove computationally
+taxing, especially if space constraints become an issue.
+
+\bibliographystyle{plainnat}
+\raggedright
+\bibliography{paper}
 
 \end{document}

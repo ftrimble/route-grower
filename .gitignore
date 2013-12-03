@@ -12,6 +12,9 @@
 *.log
 *.aux
 *.pdf
+*.bbl
+*.blg
+*.out
 
 cache
 data
