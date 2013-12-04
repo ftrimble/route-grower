@@ -694,7 +694,7 @@ between an intersection.
 Another issue arose with the preliminary calculation of $\theta$. At first, a
 much more na\"{i}ve approach was taken. Instead of using Brent's method to find
 the zeroes of \eqref{eq:dj}, the algorithm simply divided the search space into
-one hundred sections and chose the section that was closest. 
+one hundred sections and chose the section that was closest.
 
 Another difficult issue was getting the algorithm to terminate. Sometimes the
 algorithm might get stuck in a dead end where $x_0$ is a straight line through
@@ -709,6 +709,23 @@ variation. If the route back to the starting point is direct, the loop will be
 somewhat below the desired distance goal. On the other hand, if the route back
 to the starting point is less direct, the loop will slightly exceed the input
 distance goal.
+
+\begin{figure}
+  \includegraphics[width=3in]{images/route.png}
+  \caption{A Short Route in Troy} \label{img:route}
+\end{figure}
+
+Finally, consider the results that the loop generator produces. A sample route
+is given in Figure~\ref{img:route}. This is a short loop with a distance goal of
+one mile generated in eastern Troy. Unfortunately, some issues with the
+algorithm remain, as there are far too many situations where the algorithm
+creates a U-turn. That being said, it does do a decent job of generating a path
+that covers nearby roads to travel along. Indeed, especially at the beginning of
+the project, the routes don't need to be perfect. Instead, the vision involves
+the user uitlizing the algorithm to generate a prototype for a route and
+altering it slightly to avoid known bad roads or to take scenic detours, and
+other minor adjustments.
+
 
 \section{Future Work}
 
@@ -751,7 +768,13 @@ may favor better, more interesting roads than a purely weight driven experience.
 With this data, the algorithm could add a ``heatmap'' layer to the algorithm
 that keeps track of how popular a road is. Roads that are seldom used could be
 weighted negatively, while extremely popular roads would be almost mandatorily
-included in generated routes.
+included in generated routes. One interesting challenge to avoid here would be
+dealing with population density. That is, there may be a rural road that is
+everything a cyclist could desire, while city riding is absolutely nightmarish.
+Unfortunately, the city also has a much higher population density, so even
+riders riding in the city only to get out of it and find better roads will
+likely add more ``heat'' to unpleasant city roads than to beautiful rural
+roads.
 
 Another valuable extension would be to generate routes that are not necessarily
 circuits. In this paper, we have focused on loops since cyclists are likely to
@@ -768,6 +791,12 @@ solutions that is within some epsilon of the distance goal. This approach may
 be a pretty solid one, but it does raise some challenges when extended for
 additional goals, and enumerating all possibilities may prove computationally
 taxing, especially if space constraints become an issue.
+
+All of these pieces are hypothetical additional features to add; however, there
+is room for improvement on the algorithm laid out here as well. Further
+development on this algorithm should include a refinement of the weight
+generation formulas, including experimentation with increasing adherence to the
+ideal loop.
 
 \bibliographystyle{plainnat}
 \raggedright

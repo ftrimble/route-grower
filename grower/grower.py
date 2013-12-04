@@ -216,7 +216,7 @@ class Grower:
            last, weight) = self.getNextIntersection(prev,node,initweight,start)
           if res == True:
             weight = self.getWeight(prev, last, theta, weight/len(nodes))
-            if node in cycle: weight /= 2
+            if node in cycle: weight /= 8
             weightsum += weight
             info.append((weight, nodes, segmentDist, last))
       except KeyError: pass
@@ -224,7 +224,7 @@ class Grower:
       if len(info) == 0:
         return (False,[])
 
-      rand = random.uniform(0,weightsum)
+      rand = random.gauss(weightsum/2,weightsum/3)
       i = 0
       while i < len(info) and rand > info[i][0]:
         rand -= info[i][0]
@@ -263,7 +263,6 @@ class Grower:
         nodeList.append(node)
         dist += self.distance(prev,node)
 
-        if node == start: break
         rnodes = self.data.routing[self.transport][node].items()
 
         # Unroutable node; do not allow this direction
