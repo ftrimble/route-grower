@@ -5,6 +5,16 @@ Explores so you don't have to.
 
 Route Grower will create routes for you of a given distance and elevation gain.
 
-Eventually, we'll add support so that Route Grower can use previous data 
-(i.e. your previous rides) to determine which types of roads you like,
-and generate the course accordingly.
+# Motivation
+
+When you ride a lot, you're often building new routes to explore on your rides. 
+This can be incredibly time consuming. Route grower attempts to automate this
+process and will eventually feed in data from riding heat maps, segment popularity,
+road conditions, etc.
+
+# Usage
+
+Using route grower is as simple as `python grower.py`
+
+# Contributors
+- Forest Trimble
